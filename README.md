@@ -1,5 +1,7 @@
-Metawear-SampleiOSApp
+Metawear-SampleiOSApp (DEPRECATED)
 ========================
+
+This is here for historical reference, only the Swift version (on master branch) will receive updates from here on out.  
 
 Sample iOS App for MetaWear (www.mbientlab.com)
 

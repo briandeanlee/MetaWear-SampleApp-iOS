@@ -7,5 +7,7 @@ target 'MetaWearApiTest' do
   pod 'MBProgressHUD'
   pod 'StaticDataTableViewController'
   pod 'iOSDFULibrary'
+  pod 'Fabric'
+  pod 'Crashlytics'
 end
 

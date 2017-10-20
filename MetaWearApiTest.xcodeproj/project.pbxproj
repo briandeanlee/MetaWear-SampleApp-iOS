@@ -151,6 +151,7 @@
 				402D4209198843BE0011ADB1 /* Resources */,
 				E711036782C2A3FE46E2CE38 /* [CP] Embed Pods Frameworks */,
 				1D3D6EB764ADDD9D5CA49F17 /* [CP] Copy Pods Resources */,
+				403F83941E24A29000F5B213 /* ShellScript */,
 			);
 			buildRules = (
 			);
@@ -232,6 +233,19 @@
 			shellPath = /bin/sh;
 			shellScript = "\"${SRCROOT}/Pods/Target Support Files/Pods-MetaWearApiTest/Pods-MetaWearApiTest-resources.sh\"\n";
 			showEnvVarsInLog = 0;
+		};
+		403F83941E24A29000F5B213 /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Fabric/run\" 93feded1f4306514df3401694db5e11201b8a59f 7ade13a5925ba42e7012c13ea86cb3f350e5030c1e8043330dc2bea8d785d0f0";
 		};
 		634C60477A76C098AEB796E7 /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;

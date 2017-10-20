@@ -13,6 +13,7 @@ import MessageUI
 import Bolts
 import MBProgressHUD
 import iOSDFULibrary
+import Crashlytics
 
 extension String {
     var drop0xPrefix:          String { return hasPrefix("0x") ? String(characters.dropFirst(2)) : self }
@@ -375,7 +376,7 @@ class DeviceDetailViewController: StaticDataTableViewController, DFUServiceDeleg
         connectionSwitch.setOn(true, animated: true)
         // Perform all device specific setup
         print("ID: \(self.device.identifier.uuidString) MAC: \(self.device.mac ?? "N/A")")
-
+        Crashlytics.sharedInstance().setUserIdentifier(result.value)
         // We always have the info and state features
         cells(self.infoAndStateCells, setHidden: false)
         mfgNameLabel.text = device.deviceInfo?.manufacturerName ?? "N/A"
@@ -383,6 +384,11 @@ class DeviceDetailViewController: StaticDataTableViewController, DFUServiceDeleg
         hwRevLabel.text = device.deviceInfo?.hardwareRevision ?? "N/A"
         fwRevLabel.text = device.deviceInfo?.firmwareRevision ?? "N/A"
         modelNumberLabel.text = "\(device.deviceInfo?.modelNumber ?? "N/A") (\(MBLModelString(device.model)))"
+        
+        Crashlytics.sharedInstance().setObjectValue(hwRevLabel.text, forKey: "hardwareRevision")
+        Crashlytics.sharedInstance().setObjectValue(fwRevLabel.text, forKey: "firmwareRevision")
+        Crashlytics.sharedInstance().setObjectValue(modelNumberLabel.text, forKey: "modelNumber")
+        
         txPowerSelector.selectedSegmentIndex = Int(device.settings!.transmitPower.rawValue)
         // Automaticaly send off some reads
         device.readBatteryLifeAsync().success { result in

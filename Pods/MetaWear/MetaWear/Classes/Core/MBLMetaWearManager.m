@@ -456,16 +456,26 @@ void MBLSetUseMockManager(BOOL useMock) { useMockManager = useMock; }
                    andAdvertisementData:(NSDictionary *)advertisementData
                                    RSSI:(NSNumber *)RSSI
 {
+    NSString *adName = advertisementData[CBAdvertisementDataLocalNameKey];
     CBUUID *uuid = [advertisementData[CBAdvertisementDataServiceUUIDsKey] firstObject];
     BOOL isMetaBoot = [uuid isEqual:[MBLConstants DFUServiceUUID]];
+    NSMutableArray *array = isMetaBoot ? self.discoveredMetaBoots : self.discoveredMetaWears;
+    NSMutableArray *otherArray = isMetaBoot ? self.discoveredMetaWears : self.discoveredMetaBoots;
+    // If a device switched from metawear to metaboot, remove from old list now
+    [otherArray enumerateObjectsWithOptions:NSEnumerationReverse usingBlock:^(MBLMetaWear *p, NSUInteger idx, BOOL *stop) {
+        if ([p.identifier isEqual:peripheral.identifier]) {
+            [otherArray removeObjectAtIndex:idx];
+        }
+    }];
     // Updates things we already know about
-    NSArray *array = isMetaBoot ? self.discoveredMetaBoots : self.discoveredMetaWears;
     for (MBLMetaWear *device in array) {
         if ([device.identifier isEqual:peripheral.identifier]) {
             device.peripheral = peripheral;
             peripheral.delegate = device;
-            [device updateName:peripheral.name];
+            [device updateName:adName ? adName : peripheral.name];
             device.discoveryTimeRSSI = RSSI;
+            device.advertisementData = advertisementData;
+            device.isMetaBoot = isMetaBoot;
             self.peripheralToMetaWear[peripheral] = device;
             return device;
         }
@@ -481,15 +491,13 @@ void MBLSetUseMockManager(BOOL useMock) { useMockManager = useMock; }
     } else {
         device.peripheral = peripheral;
         peripheral.delegate = device;
-        [device updateName:peripheral.name];
+        [device updateName:adName ? adName : peripheral.name];
         device.discoveryTimeRSSI = RSSI;
+        device.advertisementData = advertisementData;
+        device.isMetaBoot = isMetaBoot;
     }
     self.peripheralToMetaWear[peripheral] = device;
-    if (isMetaBoot) {
-        [self.discoveredMetaBoots addObject:device];
-    } else {
-        [self.discoveredMetaWears addObject:device];
-    }
+    [array addObject:device];
     return device;
 }
 

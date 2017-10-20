@@ -77,6 +77,7 @@
 #import "MBLMovingAverage.h"
 #import "MBLConstants+Private.h"
 #import "MBLLogger.h"
+#import "MBLStringData.h"
 
 static int MAX_PENDING_WRITES = 10;
 
@@ -106,14 +107,11 @@ typedef void (^MBLModuleInfoHandler)(MBLModuleInfo *moduleInfo);
 @property (nonatomic, nullable) MBLProximity *proximity;
 @property (nonatomic, nullable) MBLSensorFusion *sensorFusion;
 @property (nonatomic, nullable) MBLSettings *settings;
-@property (nonatomic, nullable) MBLDeviceInfo *deviceInfo;
 
 @property (nonatomic, nullable) id<MBLRestorable> configuration;
 
 @property (nonatomic) MBLConnectionState state;
 @property (nonatomic) BOOL programedByOtherApp;
-@property (nonatomic, nonnull) NSUUID *identifier;
-@property (nonatomic, nullable) NSNumber *discoveryTimeRSSI;
 @property (nonatomic) MBLMovingAverage *rssiAverager;
 //@property (nonatomic, nonnull) NSString *name;
 // Setting the name property causes side effects, so we
@@ -123,8 +121,13 @@ typedef void (^MBLModuleInfoHandler)(MBLModuleInfo *moduleInfo);
 
 
 // Properties from MBLMetaWear+Private.h
-@property (nonatomic) BOOL bypassSetup;
+@property (nonatomic, nonnull) NSUUID *identifier;
+@property (nonatomic) NSDictionary *advertisementData;
+@property (nonatomic, nullable) NSString *mac;
+@property (nonatomic, nullable) NSNumber *discoveryTimeRSSI;
+@property (nonatomic) BOOL isMetaBoot;
 
+@property (nonatomic) BOOL bypassSetup;
 @property (nonatomic) id<MBLBluetoothPeripheral> peripheral;
 
 @property (nonatomic) MBLDataProcessor *dataProcessor;
@@ -132,13 +135,13 @@ typedef void (^MBLModuleInfoHandler)(MBLModuleInfo *moduleInfo);
 @property (nonatomic) MBLCommand *command;
 @property (nonatomic) MBLTestDebug *testDebug;
 @property (nonatomic) MBLMacro *macro;
+@property (nonatomic, nullable) MBLDeviceInfo *deviceInfo;
 
 @property (nonatomic) MBLNonVolatileState *nonVolatileState;
 
 @property (nonatomic) MBLDispatchQueue *zeroCountQueue;
 
-// Properties needed internally requring AutoConding
-@property (nonatomic) NSArray *modules;
+@property (nonatomic, nullable) NSArray *modules;
 @end
 
 
@@ -216,6 +219,7 @@ typedef void (^MBLModuleInfoHandler)(MBLModuleInfo *moduleInfo);
         
         self.peripheral = peripheral;
         self.identifier = peripheral.identifier;
+        self.advertisementData = advertisementData;
         self.nameImpl = peripheral.name;
         self.discoveryTimeRSSI = RSSI;
         self.model = MBLModelUnknown;
@@ -546,6 +550,8 @@ typedef void (^MBLModuleInfoHandler)(MBLModuleInfo *moduleInfo);
 - (void)copyModulesFrom:(MBLMetaWear *)other
 {
     self.identifier = other.identifier;
+    self.advertisementData = other.advertisementData;
+    self.mac = other.mac;
     self.nameImpl = other.name;
     self.deviceInfo = other.deviceInfo;
     
@@ -1187,6 +1193,23 @@ typedef void (^MBLModuleInfoHandler)(MBLModuleInfo *moduleInfo);
     return source.task;
 }
 
+- (BFTask *)createAnonymousEventsAsync
+{
+    NSMutableArray *tasks = [NSMutableArray array];
+    if (self.accelerometer) {
+        [tasks addObject:[self.accelerometer pullConfigAsync]];
+    }
+    if (self.gyro) {
+        [tasks addObject:[self.gyro pullConfigAsync]];
+    }
+    if (self.sensorFusion) {
+        [tasks addObject:[self.sensorFusion pullConfigAsync]];
+    }
+    return [[BFTask taskForCompletionOfAllTasks:tasks] continueOnMetaWearWithSuccessBlock:^id _Nullable(BFTask * _Nonnull t) {
+        return [self.logging queryActiveLoggersAsync];
+    }];
+}
+
 - (BFTask<MBLDeviceInfo *> *)readDeviceInfoAsync;
 {
     BFTaskCompletionSource *source = [BFTaskCompletionSource taskCompletionSource];
@@ -1240,6 +1263,11 @@ typedef void (^MBLModuleInfoHandler)(MBLModuleInfo *moduleInfo);
     }
     // Trigger the reset, this will cause a disconnect
     [self.testDebug resetDevice];
+}
+
+- (BFTask *)sleepModeOnReset
+{
+    return [self.testDebug enterPowersaveOnReset];
 }
 
 - (BFTask<NSNumber *> *)checkForFirmwareUpdateAsync
@@ -1460,7 +1488,7 @@ typedef void (^MBLModuleInfoHandler)(MBLModuleInfo *moduleInfo);
 
 - (void)setupMetaWear
 {
-    [[[[[[[self readDeviceInfoAsync] continueOnMetaWearWithSuccessBlock:^id _Nullable(BFTask<MBLDeviceInfo *> * _Nonnull t) {
+    [[[[[[[[self readDeviceInfoAsync] continueOnMetaWearWithSuccessBlock:^id _Nullable(BFTask<MBLDeviceInfo *> * _Nonnull t) {
         // Starting firmware 1.1.0 we can flood the beast!
         if ([MBLConstants versionString:t.result.firmwareRevision isLessThan:@"1.1.0"]) {
             MAX_PENDING_WRITES = 3;
@@ -1480,20 +1508,24 @@ typedef void (^MBLModuleInfoHandler)(MBLModuleInfo *moduleInfo);
         // Start listening to the global notification register since the following
         // checks need to read data (which uses callbacks throught this characteristic)
         [self.peripheral setNotifyValue:YES forCharacteristic:metawearNotification6Characteristic];
-        // 
+        // Get MAC address if needed (but ignore errors)
+        return [self.mac ? nil : [self.settings.macAddress readAsync] continueOnMetaWearWithSuccessBlock:^id _Nullable(BFTask<MBLStringData *> * _Nonnull t) {
+            self.mac = t.result.value;
+            return nil;
+        }];
+    }] continueOnMetaWearWithSuccessBlock:^id _Nullable(BFTask<NSNumber *> * _Nonnull t) {
         return [self.testDebug isProgramedByOtherAppAsync];
     }] continueOnMetaWearWithSuccessBlock:^id _Nullable(BFTask<NSNumber *> * _Nonnull t) {
-        self.programedByOtherApp = t.result.boolValue;
-        if (t.result.boolValue) {
+        BOOL isProgramedByOtherAppResult = t.result.boolValue;
+        self.programedByOtherApp = isProgramedByOtherAppResult;
+        // No matter if we are the owning application or not we first run checkForResetAsync
+        // since it sync's the logger timstamps since a guest app can download log now
+        return [[self.logging checkForResetAsync] continueOnMetaWearWithSuccessBlock:^id _Nullable(BFTask<NSNumber *> * _Nonnull t) {
             // If we are programmed by another app finish the connection now, note this will
-            // jump over all "success" blocks
-            return [BFTask cancelledTask];
-        } else {
-            // If we are the owning application do extra cleanup and state checking.
-            // First check if the device happened to reset while we were away and if
-            // so reload its reset state
-            return [self.logging checkForResetAsync];
-        }
+            // jump over all "success" blocks.  Otherwise forward the "didReset" result to
+            // the next block and continue with extra cleanup and state checking.
+            return isProgramedByOtherAppResult ? [BFTask cancelledTask] : t;
+        }];
     }] continueOnMetaWearWithSuccessBlock:^id _Nullable(BFTask<NSNumber *> * _Nonnull t) {
         BOOL didReset = t.result.boolValue;
         if (didReset) {

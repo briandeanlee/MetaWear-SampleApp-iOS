@@ -63,6 +63,7 @@
 @class MBLMetaWear;
 @class MBLFirmwareUpdateInfo;
 @protocol MBLBluetoothPeripheralDelegate;
+@class MBLAnonymousEvent;
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -250,6 +251,16 @@ typedef NS_ENUM(NSInteger, MBLConnectionState) {
  */
 @property (nonatomic, readonly) NSUUID *identifier;
 /**
+ A dictionary containing any advertisement and scan response data. For
+ a list of advertisementData keys, see {@link CBAdvertisementDataLocalNameKey}
+ and other similar constants.
+ */
+@property (nonatomic, readonly) NSDictionary *advertisementData;
+/**
+ MAC address of this MetaWear.  NOTE: this is only populated after a successful connection
+ */
+@property (nonatomic, readonly, nullable) NSString *mac;
+/**
  Stored value of signal strength at discovery time
  */
 @property (nonatomic, readonly, nullable) NSNumber *discoveryTimeRSSI;
@@ -338,6 +349,13 @@ typedef NS_ENUM(NSInteger, MBLConnectionState) {
  */
 - (BFTask<NSNumber *> *)readBatteryLifeAsync;
 
+/**
+ Reads the current state of the board and creates anonymous events
+ based on what data is being logged.  This lets you download the
+ log without knowing exactly where/how it was setup.
+ */
+- (BFTask<NSArray<MBLAnonymousEvent *> *> *)createAnonymousEventsAsync;
+
 ///----------------------------------
 /// @name Firmware Update and Reset
 ///----------------------------------
@@ -348,6 +366,13 @@ typedef NS_ENUM(NSInteger, MBLConnectionState) {
  @warning This will cause the device to disconnect
  */
 - (void)resetDevice;
+
+/**
+ After the next reset, the device will immediately enter a low-power sleep
+ mode.  To wake the device back up you can press the button, connect usb
+ power (latest models only), or remove and reconnect the coin cell battery.
+ */
+- (BFTask *)sleepModeOnReset;
 
 /**
  See if this device is running the most up to date firmware
@@ -368,6 +393,12 @@ typedef NS_ENUM(NSInteger, MBLConnectionState) {
  to update it!
  */
 - (BFTask<MBLFirmwareUpdateInfo *> *)prepareForFirmwareUpdateAsync;
+
+/**
+ Check if this device is in bootloader mode, if yes then you may only call
+ prepareForFirmwareUpdateAsync.  Any call to connectAsync will retun an error
+ */
+@property (nonatomic, readonly) BOOL isMetaBoot;
 
 ///----------------------------------
 /// @name Debug and Testing Utilities

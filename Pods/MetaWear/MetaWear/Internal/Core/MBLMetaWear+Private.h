@@ -50,9 +50,13 @@ typedef void (^MBLSimulationHandler)(uint8_t module, uint8_t opcode, NSData *par
 
 // Properties that certain privileged people need access too
 @interface MBLMetaWear (Private) <MBLBluetoothPeripheralDelegate>
+@property (nonatomic, nonnull) NSUUID *identifier;
+@property (nonatomic) NSDictionary *advertisementData;
+@property (nonatomic, nullable) NSString *mac;
 @property (nonatomic, nullable) NSNumber *discoveryTimeRSSI;
-@property (nonatomic) id<MBLBluetoothPeripheral> peripheral;
+@property (nonatomic) BOOL isMetaBoot;
 
+@property (nonatomic) id<MBLBluetoothPeripheral> peripheral;
 @property (nonatomic) BOOL bypassSetup;
 
 @property (nonatomic, readonly) MBLDataProcessor *dataProcessor;
@@ -60,11 +64,13 @@ typedef void (^MBLSimulationHandler)(uint8_t module, uint8_t opcode, NSData *par
 @property (nonatomic, readonly) MBLCommand *command;
 @property (nonatomic, readonly) MBLTestDebug *testDebug;
 @property (nonatomic, readonly) MBLMacro *macro;
+@property (nonatomic, nullable) MBLDeviceInfo *deviceInfo;
 
 @property (nonatomic, readonly) MBLNonVolatileState *nonVolatileState;
 
 @property (nonatomic, readonly) MBLDispatchQueue *zeroCountQueue;
 
+@property (nonatomic, nullable) NSArray *modules;
 
 - (instancetype)initWithPeripheral:(id<MBLBluetoothPeripheral>)peripheral
               andAdvertisementData:(NSDictionary *)advertisementData

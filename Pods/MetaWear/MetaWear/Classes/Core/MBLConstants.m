@@ -146,8 +146,6 @@ NSInteger const kMBLErrorUnexpectedException = 114;
 NSInteger const kMBLErrorBluetoothPoweredOff = 115;
 NSInteger const kMBLErrorBluetoothUnsupported = 116;
 NSInteger const kMBLErrorBluetoothUnauthorized = 117;
-NSInteger const kMBLErrorDisconnectRequested = 118;
-NSInteger const kMBLErrorDFUServiceFound = 119;
 
 
 static const uint8_t simulatorKey;

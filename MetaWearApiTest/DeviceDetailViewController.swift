@@ -376,7 +376,7 @@ class DeviceDetailViewController: StaticDataTableViewController, DFUServiceDeleg
         connectionSwitch.setOn(true, animated: true)
         // Perform all device specific setup
         print("ID: \(self.device.identifier.uuidString) MAC: \(self.device.mac ?? "N/A")")
-        Crashlytics.sharedInstance().setUserIdentifier(result.value)
+        Crashlytics.sharedInstance().setUserIdentifier(self.device.mac ?? "N/A")
         // We always have the info and state features
         cells(self.infoAndStateCells, setHidden: false)
         mfgNameLabel.text = device.deviceInfo?.manufacturerName ?? "N/A"
